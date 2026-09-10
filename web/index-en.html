@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Avatar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3f37c9;
+            --bg: #f0f4fc;
+            --card-bg: rgba(255,255,255,0.85);
+            --radius: 14px;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #fff;
+            color: #1e293b;
+            min-height: 0;
+            margin: 0;
+        }
+        .navbar-brand { font-weight: 700; }
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: var(--radius);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: transparent;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            padding: 16px 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-header i { color: var(--primary); }
+        .card-body { padding: 20px; }
+        video { width: 100%; border-radius: 8px; background: #000; }
+        .session-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; }
+        .connected { background: #d1fae5; color: #065f46; }
+        .disconnected { background: #fee2e2; color: #991b1b; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+        .status-dot.on { background: #10b981; }
+        .status-dot.off { background: #ef4444; }
+        .quick-link { text-decoration: none; }
+        .quick-link .glass-card { transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
+        .quick-link:hover .glass-card { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,0.1); }
+        label { font-weight: 500; font-size: 0.9rem; color: #64748b; margin-bottom: 4px; }
+        .param-hint { font-size: 0.75rem; color: #94a3b8; }
+        ::placeholder { color: #9ca3af !important; opacity: 1; }
+        :-ms-input-placeholder { color: #9ca3af; }
+        .chat-bubble { max-width: 94%; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 16px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+        .chat-user { background: #4361ee; color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+        .chat-bot { background: rgba(0,0,0,0.06); color: #1e293b; margin-right: auto; border-bottom-left-radius: 4px; }
+        .app-shell { display: grid; grid-template-rows: minmax(0, 1fr) 76px; width: 100%; height: 100dvh; padding: 0 !important; overflow: hidden; background: #fff; }
+        .main-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; min-height: 0; overflow: hidden; background: #fff; }
+        .avatar-pane { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
+        .chat-pane { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-left: 1px solid #e5e7eb; }
+        .avatar-stage { position: relative; display: flex; flex: 1; min-height: 0; align-items: stretch; justify-content: center; overflow: hidden; }
+        .avatar-pane .glass-card { flex: 1; min-height: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; margin: 0; overflow: hidden; }
+        .avatar-pane .card-header { display: none !important; }
+        .avatar-pane .card-body { height: 100%; min-height: 0; padding: 0; display: flex; flex-direction: column; }
+        .avatar-pane .mt-3 { margin-top: 0 !important; }
+        #video { width: 100%; height: 100%; max-height: none; background: #999 !important; object-fit: cover; object-position: center; border-radius: 0; }
+        .avatar-selector {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 7px 5px 11px;
+            background: #fff;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .chat-toolbar { flex: 0 0 66px; display: flex; align-items: center; padding: 0 18px; border-bottom: 1px solid #e5e7eb; background: #fff; }
+        .avatar-selector:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67,97,238,0.14);
+        }
+        .avatar-selector > i { color: var(--primary); font-size: 1rem; }
+        #avatarSelect {
+            width: 210px;
+            min-width: 0;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            border: 0;
+            background-color: transparent;
+            color: #1e293b;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: none;
+        }
+        #avatarSelect:focus { box-shadow: none; }
+        .chat-pane .glass-card { flex: 1; min-height: 0; border: 0; border-radius: 0; box-shadow: none; margin: 0; overflow: hidden; background: #fff; }
+        .chat-pane .card-body { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 16px 14px; background: #fff; }
+        #chatResponse { flex: 1; height: auto !important; min-height: 0 !important; overflow-y: auto !important; overscroll-behavior: contain; border: 0 !important; background: #fff !important; }
+        .chat-composer { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 14px 12px; border-top: 1px solid #e5e7eb; background: #fff; }
+        .latency-row { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.08); color: #64748b; font-size: 0.72rem; }
+        .latency-row strong { color: #334155; font-variant-numeric: tabular-nums; }
+        .chat-bot p:last-child { margin-bottom: 0; }
+        .chat-media { width: 100%; max-height: 320px; margin-top: 8px; border-radius: 6px; background: #000; }
+        .tour-qr { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+        .tour-qr img { width: 144px; height: 144px; padding: 6px; border-radius: 4px; background: #fff; }
+        .tour-qr a { font-size: 0.85rem; }
+        #txtMessage { flex: 1; min-width: 0; height: 42px; min-height: 42px; resize: none; border: 1px solid #d1d5db; border-radius: 999px; font-size: 16px; padding: 8px 16px; overflow: hidden; }
+        @media (max-width: 992px) {
+            .app-shell { grid-template-rows: minmax(0, 1fr) 64px; }
+            .main-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 46%) minmax(0, 54%); }
+            .avatar-pane, .chat-pane { width: 100%; height: auto; min-width: 0; min-height: 0; }
+            .chat-pane { border-left: 0; border-top: 1px solid #e5e7eb; }
+            .chat-toolbar { flex-basis: 48px; padding: 0 10px; }
+            .avatar-selector { padding-top: 2px; padding-bottom: 2px; }
+            .chat-pane .card-body { height: 100%; padding: 0 10px 8px; }
+            .chat-composer { gap: 7px; padding: 8px 10px; }
+        }
+    </style>
+    <style>
+        :root {
+            --kiosk-ink: #172033;
+            --kiosk-muted: #64748b;
+            --kiosk-line: #d9e1ec;
+            --kiosk-brand: #3f63e8;
+            --kiosk-brand-dark: #2746bd;
+            --kiosk-glow: #ff3ba7;
+            --kiosk-glow-soft: rgba(255, 59, 167, 0.42);
+            /* Chat pane stays white per spec; the kiosk reference only sets its layout. */
+            --chat-bg: #fff;
+            --chat-fg: var(--kiosk-ink);
+            --chat-muted: var(--kiosk-muted);
+            --chat-bubble-bot: #f1f3f7;
+            --chat-bubble-user: var(--kiosk-brand);
+            --chat-accent: var(--kiosk-brand);
+        }
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body { margin: 0; background: #fff; color: var(--kiosk-ink); font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        button, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        button:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(63, 99, 232, 0.28); outline-offset: 2px; }
+        /* Row 2 is the full-width text strip; it collapses to nothing until opened. */
+        #app { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; width: 100%; height: 100dvh; overflow: hidden; background: #fff; }
+        .view { position: absolute; inset: 0; min-width: 0; min-height: 0; }
+        .view[hidden] { display: none !important; }
+        .session-badge, #sessionIdDisplay { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+        #landingView { background: #111827; isolation: isolate; }
+        #landingVideo { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 42%; background: #111827; }
+        .landing-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8, 12, 20, 0.02) 25%, rgba(8, 12, 20, 0.2) 55%, rgba(8, 12, 20, 0.72) 100%); pointer-events: none; }
+        .landing-content { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 0 clamp(14px, 2vh, 24px); text-align: center; color: #fff; }
+        .landing-copy { width: min(1100px, calc(100% - 32px)); margin: 0 auto 26px; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5); }
+        .landing-copy h1 { margin: 0; font-size: clamp(1.9rem, 3.2vw, 3rem); line-height: 1.16; letter-spacing: 0; font-weight: 780; }
+        .landing-copy p { margin: 0; font-size: clamp(1.9rem, 3.2vw, 3rem); line-height: 1.16; font-weight: 780; }
+        .landing-prompts { width: 100%; margin-bottom: 20px; overflow: hidden; mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent); }
+        .prompt-row { width: 100%; overflow: hidden; }
+        .prompt-row + .prompt-row { margin-top: 9px; }
+        .prompt-track { display: flex; width: max-content; will-change: transform; animation: prompt-scroll 26s linear infinite; }
+        .prompt-row.reverse .prompt-track { animation-name: prompt-scroll-reverse; animation-duration: 28s; }
+        .prompt-group { display: flex; flex: 0 0 auto; gap: 10px; padding-right: 10px; }
+        .prompt-chip { flex: 0 0 auto; min-height: 44px; padding: 9px 20px; border: 0; border-radius: 999px; background: rgba(88, 90, 96, 0.62); color: #fff; font-size: 1rem; font-weight: 500; white-space: nowrap; backdrop-filter: blur(10px); }
+        .prompt-chip:hover { background: rgba(118, 121, 128, 0.82); }
+        @keyframes prompt-scroll { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-50%, 0, 0); } }
+        @keyframes prompt-scroll-reverse { from { transform: translate3d(-50%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+        .landing-actions { display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .landing-ask { min-width: 268px; min-height: 74px; padding: 0 34px; border: 3px solid var(--kiosk-glow); border-radius: 999px; background: #0a0a0a; color: #fff; font-size: 1.3rem; font-weight: 760; box-shadow: 0 0 20px var(--kiosk-glow-soft), 0 0 46px var(--kiosk-glow-soft); transition: box-shadow 160ms ease; }
+        .landing-ask:hover { box-shadow: 0 0 28px var(--kiosk-glow), 0 0 62px var(--kiosk-glow-soft); }
+        .landing-footer { display: flex; flex-direction: column; align-items: center; margin-top: 16px; color: rgba(255, 255, 255, 0.86); font-size: 0.72rem; line-height: 1.3; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55); }
+        .landing-brand-logo { display: block; width: min(132px, 34vw); height: auto; margin-top: 3px; filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45)); }
+        /* Round satellite button ??flanks the primary pill on both the landing and the avatar stage. */
+        .round-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; background: rgba(60, 60, 64, 0.86); color: #fff; font-size: 1.2rem; backdrop-filter: blur(8px); transition: background 160ms ease; }
+        .round-button:hover { background: rgba(104, 106, 112, 0.94); }
+        .round-button.small { width: 46px; height: 46px; font-size: 1rem; }
+        .round-button.squared { border-radius: 14px; }
+
+        #conversationView { background: #fff; }
+        .main-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #fff; }
+        .avatar-pane { min-width: 0; min-height: 0; overflow: hidden; background: #000; }
+        .avatar-stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+        #video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; border-radius: 0; background: #000 !important; }
+        .avatar-voice-control { position: absolute; z-index: 4; left: 50%; bottom: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; }
+        #offerError { position: absolute; z-index: 3; top: 18px; left: 18px; right: 18px; margin: 0; border-radius: 6px; }
+        .chat-pane { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-left: 0; background: var(--chat-bg); }
+        .chat-toolbar { flex: 0 0 96px; padding: 18px 14px 0 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 0; background: var(--chat-bg); }
+        .chat-brand { color: var(--chat-muted); font-size: 0.72rem; line-height: 1.3; text-align: left; }
+        .chat-brand-logo { display: block; width: 126px; height: auto; margin-top: 3px; }
+        .chat-toolbar-actions { display: inline-flex; align-items: center; gap: 10px; }
+        .conversation-exit { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--chat-muted); font-size: 1.2rem; }
+        .conversation-exit:hover { background: #f1f5f9; color: var(--kiosk-brand); }
+        #chatResponse { flex: 1; min-height: 0 !important; height: auto !important; overflow-y: auto !important; overscroll-behavior: contain; padding: 4px 22px 22px; border: 0 !important; border-radius: 0; background: var(--chat-bg) !important; }
+        .chat-bubble { position: relative; width: fit-content; max-width: 92%; margin: 0 0 12px; padding: 12px 16px; border-radius: 14px; font-size: 16px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+        .chat-user { margin-left: auto; border-bottom-right-radius: 4px; background: var(--chat-bubble-user); color: #fff; }
+        .chat-bot { margin-right: auto; padding-bottom: 10px; background: var(--chat-bubble-bot); color: var(--chat-fg); }
+        /* Speech tail on the assistant bubble, matching the kiosk reference. */
+        .chat-bot::before { content: ''; position: absolute; left: -7px; bottom: 8px; width: 0; height: 0; border-right: 10px solid var(--chat-bubble-bot); border-top: 12px solid transparent; }
+        /* Markdown creates HTML blocks; normal whitespace prevents source newlines
+           between those blocks from becoming extra blank lines. */
+        .chat-bot .bubble-content { padding-right: 64px; white-space: normal; }
+        .chat-bot .bubble-content > :first-child { margin-top: 0; }
+        .chat-bot .bubble-content > :last-child { margin-bottom: 0; }
+        .chat-bot .bubble-content p { margin: 0 0 8px; }
+        .chat-bot .bubble-content ul,
+        .chat-bot .bubble-content ol { margin: 8px 0; padding-left: 1.45em; }
+        .chat-bot .bubble-content li { margin: 4px 0; }
+        .bubble-feedback { position: absolute; right: 9px; bottom: 5px; display: flex; gap: 2px; }
+        .bubble-feedback[hidden] { display: none; }
+        .feedback-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--chat-accent); font-size: 0.96rem; transition: color 140ms ease, background 140ms ease, transform 140ms ease; }
+        .feedback-button:hover { background: rgba(63, 99, 232, 0.11); transform: translateY(-1px); }
+        .feedback-button.selected { background: var(--chat-accent); color: #fff; }
+        /* Text mode and voice mode are exclusive: the strip and the avatar cluster swap. */
+        .chat-composer { position: relative; display: none; align-items: center; padding: 10px clamp(14px, 3vw, 40px); border-top: 1px solid var(--kiosk-line); background: #fff; }
+        #app.composer-open .chat-composer { display: flex; }
+        #app.composer-open .avatar-voice-control { display: none; }
+        #txtMessage { flex: 1; min-width: 0; min-height: 52px; height: 52px; padding: 13px 62px 13px 18px; resize: none; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: var(--chat-fg); font-size: 16px; }
+        #txtMessage::placeholder { color: #94a3b8; }
+        /* Sits inside the input's right edge; reveals the avatar voice cluster. */
+        .composer-mic { position: absolute; top: 50%; right: calc(clamp(14px, 3vw, 40px) + 7px); display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: #eef1f6; color: #3d4b60; font-size: 1rem; transform: translateY(-50%); }
+        .composer-mic:hover { background: #dee3ec; color: var(--kiosk-brand); }
+        .composer-mic.stop-response { background: #ef4444; color: #fff; }
+        .composer-mic.stop-response:hover { background: #dc2626; color: #fff; }
+
+        /* Rounded rectangle, not a pill ??the ID selector keeps any legacy #btnMic rule from winning. */
+        #btnMic.voice-control { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: flex-start; gap: 13px; width: auto; min-width: 306px; height: 66px; padding: 0 24px 0 13px; border: 3px solid var(--kiosk-glow); border-radius: 18px; background: #0a0a0a; color: #fff; font-weight: 700; box-shadow: 0 0 18px var(--kiosk-glow-soft); transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease; }
+        #btnMic.voice-control:hover { background: #1c1c1e; }
+        .voice-control.recording { border-color: #ff8a3d; box-shadow: 0 0 20px rgba(255, 138, 61, 0.62); }
+        .voice-control.interrupting { border-color: #f59e0b; box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+        .voice-control.processing { cursor: wait; border-color: #94a3b8; opacity: 0.82; box-shadow: none; }
+        .voice-control-icon { display: inline-flex; width: 38px; height: 38px; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; background: #3a3a3c; font-size: 1.05rem; }
+        .voice-control.recording .voice-control-icon { width: 26px; height: 26px; margin-left: 6px; border-radius: 6px; background: #ff453a; }
+        .voice-control.recording .voice-control-icon i { display: none; }
+        .voice-control.interrupting .voice-control-icon { width: 26px; height: 26px; margin-left: 6px; border: 3px solid #f59e0b; border-radius: 50%; background: transparent; }
+        .voice-control.interrupting .voice-control-icon::before { content: ''; width: 11px; height: 3px; border-radius: 2px; background: #f59e0b; transform: rotate(45deg); }
+        .voice-control.interrupting .voice-control-icon i { display: none; }
+        .voice-bars { display: none; height: 22px; align-items: center; gap: 5px; }
+        .voice-control.recording .voice-bars { display: flex; }
+        .voice-bar { width: 5px; height: 5px; max-height: 22px; border-radius: 2px; background: #ff453a; transition: height 55ms linear; }
+        .voice-state { flex: 0 0 auto; color: rgba(255, 255, 255, 0.74); font-size: 0.6rem; font-weight: 600; line-height: 1.25; text-align: left; }
+        .voice-control.recording .voice-state, .voice-control.interrupting .voice-state { display: none; }
+        .voice-label { flex: 1; white-space: nowrap; text-align: center; font-size: 0.95rem; }
+
+        #avatarSelect { min-width: 132px; width: auto; padding: 0; border: 0; background: transparent; color: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; box-shadow: none; }
+        #avatarSelect option { color: var(--kiosk-ink); background: #fff; }
+
+        .latency-row { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(0,0,0,.09); color: var(--chat-muted); font-size: 0.72rem; line-height: 1.25; }
+        .chat-media, .chat-media-frame { display: block; width: 100%; max-height: 320px; margin-top: 6px; border: 0; border-radius: 5px; background: #080b12; }
+        .chat-media-frame { aspect-ratio: 16 / 9; max-height: none; }
+        .link-qr { display: block; width: fit-content; max-width: 100%; margin-top: 6px; padding: 0; border: 0; background: transparent; }
+        .link-qr img { width: 156px; height: 156px; padding: 0; background: #fff; }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 48%) minmax(0, 52%); }
+            .chat-pane { border-top: 1px solid var(--kiosk-line); border-left: 0; }
+            .chat-toolbar { flex-basis: 70px; padding: 12px 8px 0 14px; }
+            .chat-brand-logo { width: 108px; }
+            #chatResponse { padding: 4px 14px 14px; }
+            .chat-composer { padding: 10px 14px 12px; }
+            .landing-content { padding-bottom: 14px; }
+            .landing-copy { margin-bottom: 16px; }
+            .landing-prompts { margin-bottom: 14px; }
+            .prompt-chip { min-height: 40px; padding: 8px 16px; font-size: 0.94rem; }
+            .landing-ask { min-width: 214px; min-height: 62px; font-size: 1.1rem; }
+            .round-button { width: 48px; height: 48px; }
+        }
+        @media (max-width: 560px) {
+            .landing-content { padding: 0 12px 12px; }
+            .landing-copy h1 { font-size: 1.6rem; }
+            .landing-actions { gap: 12px; }
+            .landing-ask { min-width: 168px; min-height: 56px; padding: 0 20px; font-size: 1rem; }
+            .round-button { width: 44px; height: 44px; }
+            #avatarSelect { min-width: 108px; }
+            .voice-control { min-width: 210px; height: 54px; padding: 0 16px; }
+            .voice-state { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .prompt-track { animation-play-state: paused; }
+            .landing-ask, .round-button, .prompt-chip, .feedback-button { transition: none; }
+        }
+
+        #conversationView[hidden] { display: none !important; }
+        #conversationView .avatar-pane .glass-card { display: flex; flex: 1; min-height: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+        #conversationView .avatar-pane .card-header { display: none !important; }
+        #conversationView .avatar-pane .card-body { display: flex; flex: 1; min-height: 0; padding: 0; }
+        #conversationView .avatar-stage { flex: 1; }
+        #conversationView .avatar-pane .mt-3 { margin-top: 0 !important; }
+        #conversationView .chat-pane .glass-card { display: flex; flex: 1; min-height: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+        #conversationView .chat-pane .card-body { display: flex; flex: 1; min-height: 0; padding: 0; background: #fff; }
+        #conversationView .chat-toolbar { justify-content: space-between; }
+        #conversationView .avatar-selector { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--kiosk-ink); box-shadow: none; }
+        #conversationView .avatar-selector > i { color: var(--kiosk-brand); }
+        #conversationView #avatarSelect { color: var(--kiosk-ink); }
+
+        .end-session-backdrop { position: absolute; z-index: 40; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(15, 23, 42, 0.52); }
+        .end-session-backdrop[hidden] { display: none; }
+        .end-session-dialog { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: min(420px, 100%); padding: 24px 30px; border: 0; border-radius: 8px; background: #303030; color: #fff; text-align: center; box-shadow: 0 22px 60px rgba(0, 0, 0, 0.42); }
+        .end-session-dialog h2 { margin: 0; font-size: 1.28rem; font-weight: 760; }
+        .end-session-dialog p { margin: 0; font-size: 0.9rem; line-height: 1.38; font-weight: 500; }
+        .end-session-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 10px; }
+        .end-session-actions button { min-height: 44px; padding: 0 18px; border-radius: 6px; font-weight: 720; }
+        /* The info panel carries prose, so it opts out of the 4:3 confirm-dialog box. */
+        .info-dialog { width: min(620px, 100%); aspect-ratio: auto; max-height: calc(100dvh - 48px); padding: 30px 34px; gap: 14px; align-items: stretch; overflow-y: auto; text-align: left; }
+        .info-dialog h2 { font-size: 1.35rem; }
+        .info-dialog p { font-size: 0.98rem; }
+        .info-dialog ul { margin: 0; padding-left: 20px; font-size: 0.98rem; line-height: 1.55; }
+        .info-dialog li + li { margin-top: 5px; }
+        .info-dialog .info-footer { color: rgba(255, 255, 255, 0.74); }
+        .info-dialog a { color: #a8c4ff; }
+        .info-dialog .end-session-actions { justify-content: flex-end; margin-top: 4px; }
+        .end-session-continue { border: 1px solid #f8fafc; background: #f8fafc; color: #1f2937; }
+        .end-session-confirm { border: 1px solid #ff6b63; background: transparent; color: #fff; }
+        .end-session-confirm:hover { background: #4a2525; }
+        .experience-rating { position: absolute; z-index: 12; bottom: 104px; left: 22px; width: min(340px, calc(100% - 44px)); padding: 18px; border: 1px solid #dbe3ef; border-radius: 12px; background: #fff; color: var(--chat-fg); box-shadow: 0 12px 34px rgba(15, 23, 42, 0.18); }
+        .experience-rating[hidden] { display: none; }
+        .experience-rating h2 { margin: 0 32px 12px 0; font-size: 1rem; font-weight: 760; }
+        .rating-dismiss { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #64748b; }
+        .rating-dismiss:hover { background: #f1f5f9; color: #0f172a; }
+        .rating-stars { display: flex; align-items: center; justify-content: flex-start; gap: 4px; }
+        .rating-star { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; color: #cbd5e1; font-size: 1.35rem; }
+        .rating-star:hover, .rating-star.selected { color: #f6b51b; }
+        .rating-hint { margin: 2px 0 12px; color: #64748b; font-size: 0.8rem; text-align: left; }
+        .rating-comment { width: 100%; min-height: 74px; resize: vertical; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 7px; color: var(--chat-fg); font: inherit; font-size: 0.86rem; line-height: 1.35; }
+        .rating-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; }
+        .rating-actions button { min-height: 34px; padding: 0 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; }
+        .rating-not-now { border: 0; background: transparent; color: #64748b; }
+        .rating-send { border: 0; background: #2563eb; color: #fff; }
+        .rating-send:hover { background: #1d4ed8; }
+        @media (max-width: 900px) {
+            .avatar-voice-control { bottom: 12px; gap: 8px; }
+            .voice-control { min-width: 224px; height: 54px; padding: 0 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <span class="session-badge disconnected visually-hidden" id="statusBadge"><span class="status-dot off"></span>Disconnected</span>
+    <span class="visually-hidden" id="sessionIdDisplay">SID: -</span>
+    <section id="landingView" class="view" aria-label="Avatar welcome screen">
+        <video id="landingVideo" autoplay muted loop playsinline preload="auto" src="/api/avatar-idle/ditto_man?v=idle-1"></video>
+        <div class="landing-shade"></div>
+        <div class="landing-content">
+            <div class="landing-copy">
+                <h1>Hi! I'm your Oral Health Buddy</h1>
+                <p>How may I help you today?</p>
+            </div>
+            <div class="landing-prompts" aria-label="Suggested questions">
+                <div class="prompt-row">
+                    <div class="prompt-track">
+                        <div class="prompt-group">
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('How should I brush my teeth properly?')">How should I brush my teeth properly?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('Why do I need to floss?')">Why do I need to floss?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('What causes cavities?')">What causes cavities?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('What foods are bad for my teeth?')">What foods are bad for my teeth?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('How should I brush my teeth properly?')">How should I brush my teeth properly?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('Why do I need to floss?')">Why do I need to floss?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('What causes cavities?')">What causes cavities?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('What foods are bad for my teeth?')">What foods are bad for my teeth?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1">How should I brush my teeth properly?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">Why do I need to floss?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">What causes cavities?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">What foods are bad for my teeth?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1">How should I brush my teeth properly?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">Why do I need to floss?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">What causes cavities?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">What foods are bad for my teeth?</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="prompt-row reverse">
+                    <div class="prompt-track">
+                        <div class="prompt-group">
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('Why are my gums bleeding?')">Why are my gums bleeding?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('How can I prevent tooth decay?')">How can I prevent tooth decay?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('I just had dental treatment. What should I do now?')">I just had dental treatment. What should I do now?</button>
+                            <button class="prompt-chip" type="button" onclick="enterConversationWithPrompt('When should I tell the dentist something is wrong?')">When should I tell the dentist something is wrong?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('Why are my gums bleeding?')">Why are my gums bleeding?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('How can I prevent tooth decay?')">How can I prevent tooth decay?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('I just had dental treatment. What should I do now?')">I just had dental treatment. What should I do now?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1" onclick="enterConversationWithPrompt('When should I tell the dentist something is wrong?')">When should I tell the dentist something is wrong?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1">Why are my gums bleeding?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">How can I prevent tooth decay?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">I just had dental treatment. What should I do now?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">When should I tell the dentist something is wrong?</button>
+                        </div>
+                        <div class="prompt-group" aria-hidden="true">
+                            <button class="prompt-chip" type="button" tabindex="-1">Why are my gums bleeding?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">How can I prevent tooth decay?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">I just had dental treatment. What should I do now?</button>
+                            <button class="prompt-chip" type="button" tabindex="-1">When should I tell the dentist something is wrong?</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="landing-actions">
+                <button class="round-button" type="button" onclick="openInfoDialog()" title="About this assistant" aria-label="About this assistant">
+                    <i class="bi bi-info-lg" aria-hidden="true"></i>
+                </button>
+                <button class="landing-ask" type="button" onclick="enterConversationAndType()">Ask a Question</button>
+                <button class="round-button" type="button" onclick="enterConversationAndTalk()" title="Press to Talk" aria-label="Press to Talk">
+                    <i class="bi bi-mic-fill" aria-hidden="true"></i>
+                </button>
+            </div>
+        <div class="landing-footer">Powered by <img class="landing-brand-logo" src="Voncierge_White%20logo.png" alt="Voncierge"></div>
+        </div>
+    </section>
+    <div id="endSessionDialog" class="end-session-backdrop" hidden>
+        <section class="end-session-dialog" role="dialog" aria-modal="true" aria-labelledby="endSessionTitle" aria-describedby="endSessionMessage">
+            <h2 id="endSessionTitle">Are you sure you want to leave?</h2>
+            <p id="endSessionMessage">If you end this session, our conversation will be cleared and I won?謒?remember what we talked about.</p>
+            <div class="end-session-actions">
+                <button class="end-session-continue" type="button" onclick="closeEndSessionDialog()">Continue Chatting</button>
+                <button class="end-session-confirm" type="button" onclick="endConversation()">End Session</button>
+            </div>
+        </section>
+    </div>
+    <div id="infoDialog" class="end-session-backdrop" hidden>
+        <section class="end-session-dialog info-dialog" role="dialog" aria-modal="true" aria-labelledby="infoDialogTitle">
+            <h2 id="infoDialogTitle">Digital Dental Health Avatar</h2>
+            <p>Developed by Voncierge in collaboration with the Health Promotion Board (HPB), this Digital Dental Health Avatar makes oral health education more interactive and accessible for students.</p>
+            <ul>
+                <li>Ask questions naturally through voice or text</li>
+                <li>Learn about brushing, flossing, diet, preventive and post-treatment care</li>
+                <li>Receive answers grounded in HPB-approved oral health information</li>
+                <li>Get directed to dental staff when further assistance is needed</li>
+            </ul>
+            <p class="info-footer">Powered by Voncierge<br><a href="https://voncierge.ai/" target="_blank" rel="noopener">https://voncierge.ai/</a></p>
+            <div class="end-session-actions">
+                <button class="end-session-continue" type="button" onclick="closeInfoDialog()">Got it</button>
+            </div>
+        </section>
+    </div>
+    <!-- Quick Links -->
+    <div class="row g-3 mb-2 d-none">
+        <div class="col-md-3">
+            <a href="/avatar-en.html" class="quick-link" target="_blank">
+                <div class="glass-card p-3 text-center">
+                    <i class="bi bi-person-bounding-box fs-2" style="color: #4361ee;"></i>
+                    <div class="fw-bold mt-2">Avatar Creator</div>
+                    <div class="small text-muted">Generate digital human avatars</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="/admin-en.html" class="quick-link" target="_blank">
+                <div class="glass-card p-3 text-center">
+                    <i class="bi bi-speedometer2 fs-2" style="color: #4361ee;"></i>
+                    <div class="fw-bold mt-2">Admin Console</div>
+                    <div class="small text-muted">Monitor sessions &amp; config</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="/tts/index-en.html" class="quick-link" target="_blank">
+                <div class="glass-card p-3 text-center">
+                    <i class="bi bi-soundwave fs-2" style="color: #4361ee;"></i>
+                    <div class="fw-bold mt-2">TTS Voice Manager</div>
+                    <div class="small text-muted">Voices 蝜?Clone 蝜?Synthesize</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div id="conversationView" class="main-layout" hidden>
+        <!-- Left Column: Connection + Video -->
+        <div class="avatar-pane">
+            <!-- 1. WebRTC Connection -->
+            <div class="glass-card">
+                <div class="card-header"><i class="bi bi-broadcast"></i> WebRTC Connection</div>
+                <div class="card-body">
+                    <div id="offerError" class="alert alert-danger mt-3" role="alert" style="display:none;"></div>
+                    <div class="mt-3 avatar-stage">
+                        <video id="video" autoplay playsinline muted></video>
+                        <audio id="remoteAudio" autoplay playsinline hidden></audio>
+                        <div class="avatar-voice-control">
+                            <button class="round-button small" type="button" onclick="openInfoDialog()" title="About this assistant" aria-label="About this assistant">
+                                <i class="bi bi-info-lg" aria-hidden="true"></i>
+                            </button>
+                            <button id="btnMic" class="voice-control" type="button" onclick="handleVoiceControl()" title="Press to speak" aria-label="Press to speak" aria-pressed="false">
+                                <span class="voice-control-icon" aria-hidden="true"><i class="bi bi-mic-fill"></i></span>
+                                <span class="voice-state" aria-hidden="true">Microphone<br>Off</span>
+                                <span class="voice-bars" aria-hidden="true">
+                                    <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                                    <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                                </span>
+                                <span class="voice-label">Press to Speak</span>
+                            </button>
+                            <button class="round-button small squared" type="button" onclick="openComposer()" title="Switch to keyboard" aria-label="Switch to keyboard">
+                                <i class="bi bi-keyboard-fill" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <aside id="experienceRating" class="experience-rating" hidden aria-label="Rate your experience">
+                            <button class="rating-dismiss" type="button" onclick="dismissExperienceRating()" aria-label="Close rating"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                            <h2>Please rate your experience</h2>
+                            <div class="rating-stars" role="radiogroup" aria-label="Rate your experience">
+                                <button class="rating-star" type="button" data-rating="1" onclick="selectExperienceRating(1)" role="radio" aria-checked="false" aria-label="1 star"><i class="bi bi-star-fill" aria-hidden="true"></i></button>
+                                <button class="rating-star" type="button" data-rating="2" onclick="selectExperienceRating(2)" role="radio" aria-checked="false" aria-label="2 stars"><i class="bi bi-star-fill" aria-hidden="true"></i></button>
+                                <button class="rating-star" type="button" data-rating="3" onclick="selectExperienceRating(3)" role="radio" aria-checked="false" aria-label="3 stars"><i class="bi bi-star-fill" aria-hidden="true"></i></button>
+                                <button class="rating-star" type="button" data-rating="4" onclick="selectExperienceRating(4)" role="radio" aria-checked="false" aria-label="4 stars"><i class="bi bi-star-fill" aria-hidden="true"></i></button>
+                                <button class="rating-star" type="button" data-rating="5" onclick="selectExperienceRating(5)" role="radio" aria-checked="false" aria-label="5 stars"><i class="bi bi-star-fill" aria-hidden="true"></i></button>
+                            </div>
+                            <p class="rating-hint">Tap a star to rate</p>
+                            <textarea id="experienceRatingComment" class="rating-comment" placeholder="What could we improve? (optional)"></textarea>
+                            <div class="rating-actions">
+                                <button class="rating-not-now" type="button" onclick="dismissExperienceRating()">Not now</button>
+                                <button class="rating-send" type="button" onclick="submitExperienceRating()">Send feedback</button>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Drivers + Actions -->
+        <div class="chat-pane">
+            <div class="chat-toolbar">
+                <div class="chat-brand">Powered by <img class="chat-brand-logo" src="voncierge-logo.png" alt="Voncierge"></div>
+                <div class="chat-toolbar-actions">
+                    <div class="avatar-selector">
+                        <i class="bi bi-person-video3" aria-hidden="true"></i>
+                        <label class="visually-hidden" for="avatarSelect">Select avatar</label>
+                        <select id="avatarSelect" onchange="switchAvatar()" class="form-select form-select-sm" title="Switch avatar"></select>
+                    </div>
+                    <button class="conversation-exit" type="button" onclick="openEndSessionDialog()" title="Exit conversation" aria-label="Exit conversation">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- 2. Text Driver -->
+            <div class="glass-card">
+                <select id="txtType" class="visually-hidden" aria-hidden="true" tabindex="-1">
+                    <option value="chat">Chat</option>
+                </select>
+                <div class="card-body">
+                    <div id="chatResponse"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="chat-composer">
+        <textarea class="form-control form-control-sm" id="txtMessage" rows="1" placeholder="Type your message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendText();}"></textarea>
+        <button id="composerAction" class="composer-mic" type="button" onclick="handleComposerAction()" title="Speak instead" aria-label="Speak instead"><i class="bi bi-mic-fill" aria-hidden="true"></i></button>
+    </div>
+</div>
+
+<script>
+let pc = null;
+let sessionid = null;
+let remoteStream = null;
+let outputAudioUnlocked = false;
+let connecting = false;
+let reconnectTimer = null;
+let sessionEnded = false;
+let sessionWaiters = [];
+let chatSessionId = createChatSessionId();
+let activeChatAbortController = null;
+let textResponseActive = false;
+let experienceRatingTimer = null;
+let experienceRatingShown = false;
+let experienceRatingEligible = false;
+let experienceRatingValue = 0;
+
+function createChatSessionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+    }
+    return 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
+function resetExperienceRating() {
+    if (experienceRatingTimer) {
+        clearTimeout(experienceRatingTimer);
+        experienceRatingTimer = null;
+    }
+    experienceRatingShown = false;
+    experienceRatingEligible = false;
+    experienceRatingValue = 0;
+    const panel = document.getElementById('experienceRating');
+    if (panel) panel.hidden = true;
+    document.querySelectorAll('.rating-star').forEach(star => {
+        star.classList.remove('selected');
+        star.setAttribute('aria-checked', 'false');
+    });
+    const comment = document.getElementById('experienceRatingComment');
+    if (comment) comment.value = '';
+}
+
+function scheduleExperienceRating() {
+    if (experienceRatingShown || experienceRatingTimer || !experienceRatingEligible) return;
+    experienceRatingTimer = window.setTimeout(() => {
+        experienceRatingTimer = null;
+        if (document.getElementById('conversationView').hidden) return;
+        experienceRatingShown = true;
+        document.getElementById('experienceRating').hidden = false;
+    }, 8000);
+}
+
+function dismissExperienceRating() {
+    if (experienceRatingTimer) {
+        clearTimeout(experienceRatingTimer);
+        experienceRatingTimer = null;
+    }
+    experienceRatingShown = true;
+    document.getElementById('experienceRating').hidden = true;
+}
+
+function selectExperienceRating(value) {
+    experienceRatingValue = value;
+    document.querySelectorAll('.rating-star').forEach(star => {
+        const selected = Number(star.dataset.rating) <= value;
+        star.classList.toggle('selected', selected);
+        star.setAttribute('aria-checked', String(Number(star.dataset.rating) === value));
+    });
+}
+
+function submitExperienceRating() {
+    // This is intentionally local-only UI; no rating or comment is sent anywhere.
+    dismissExperienceRating();
+}
+
+function updateStatus(connected) {
+    const badge = document.getElementById('statusBadge');
+    if (connected) {
+        badge.className = 'session-badge connected visually-hidden';
+        badge.innerHTML = '<span class="status-dot on"></span>Connected';
+    } else {
+        badge.className = 'session-badge disconnected visually-hidden';
+        badge.innerHTML = '<span class="status-dot off"></span>Disconnected';
+    }
+}
+
+function setSessionId(sid) {
+    sessionid = sid;
+    document.getElementById('sessionIdDisplay').textContent = 'SID: ' + (sid || '-');
+    if (sid) {
+        const waiters = sessionWaiters;
+        sessionWaiters = [];
+        waiters.forEach(resolve => resolve(true));
+    }
+}
+
+function showError(msg) {
+    const el = document.getElementById('offerError');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 8000);
+}
+
+function selectedAvatarId() {
+    return document.getElementById('avatarSelect')?.value || INITIAL_AVATAR_ID;
+}
+
+function avatarPreviewUrl(avatarId) {
+    if (window.location.protocol === 'file:') {
+        return avatarId === 'ditto_man' ? '../assets/idle.mp4' : '../assets/woman.mp4';
+    }
+    return '/api/avatar-idle/' + encodeURIComponent(avatarId) + '?v=idle-1';
+}
+
+function setPreviewSource(video, sourceUrl) {
+    if (!video || video.srcObject) return;
+    if (video.dataset.avatarSource === sourceUrl && video.getAttribute('src') === sourceUrl) return;
+    video.dataset.avatarSource = sourceUrl;
+    video.src = sourceUrl;
+    video.loop = true;
+    video.muted = true;
+    video.load();
+    video.play().catch(() => {});
+}
+
+function updateLandingSource() {
+    const landingVideo = document.getElementById('landingVideo');
+    const avatarId = selectedAvatarId();
+    const sourceUrl = avatarPreviewUrl(avatarId);
+    setPreviewSource(landingVideo, sourceUrl);
+    setPreviewSource(document.getElementById('video'), sourceUrl);
+}
+
+function enterConversation() {
+    sessionEnded = false;
+    updateLandingSource();
+    const app = document.getElementById('app');
+    // Text input is the default mode on entry; the keyboard button hides it.
+    app.classList.add('conversation-active', 'composer-open');
+    document.getElementById('landingView').hidden = true;
+    document.getElementById('conversationView').hidden = false;
+    document.getElementById('video').play().catch(() => {});
+}
+
+// Agent chat must not wait on the expensive Ditto/WebRTC setup. Only queued
+// avatar speech awaits this promise, so a cold avatar cannot drop a question.
+function ensureSession() {
+    if (sessionid) return Promise.resolve(true);
+    sessionEnded = false;
+    start();
+    return new Promise(resolve => sessionWaiters.push(resolve));
+}
+
+async function enterConversationAndTalk() {
+    enterConversation();
+    await startVoiceMode();
+}
+
+// "Ask a Question" ??same session bootstrap as the mic, minus the capture.
+function enterConversationAndType() {
+    enterConversation();
+    unlockOutputAudio();
+    if (!sessionid) ensureSession();
+    openComposer();
+}
+
+function openInfoDialog() {
+    const dialog = document.getElementById('infoDialog');
+    dialog.hidden = false;
+    dialog.querySelector('.end-session-continue').focus();
+}
+
+function closeInfoDialog() {
+    document.getElementById('infoDialog').hidden = true;
+}
+
+// Text mode: the strip replaces the avatar's voice cluster. A capture in progress
+// is dropped ??the user chose to type instead.
+function openComposer() {
+    if (micOn) stopMic(false);
+    document.getElementById('app').classList.add('composer-open');
+    document.getElementById('txtMessage').focus();
+}
+
+function renderComposerAction() {
+    const button = document.getElementById('composerAction');
+    if (!button) return;
+    const canStop = textResponseActive || avatarSpeaking;
+    button.classList.toggle('stop-response', canStop);
+    button.innerHTML = canStop
+        ? '<i class="bi bi-stop-fill" aria-hidden="true"></i>'
+        : '<i class="bi bi-mic-fill" aria-hidden="true"></i>';
+    const label = canStop ? 'Stop response' : 'Speak instead';
+    button.title = label;
+    button.setAttribute('aria-label', label);
+}
+
+async function handleComposerAction() {
+    if (textResponseActive || avatarSpeaking) {
+        await stopTextResponse();
+        return;
+    }
+    await startVoiceMode();
+}
+
+async function stopTextResponse() {
+    if (activeChatAbortController) activeChatAbortController.abort();
+    activeChatAbortController = null;
+    textResponseActive = false;
+    await interrupt();
+    renderComposerAction();
+}
+
+// Voice mode: hide the strip, reveal the cluster under the avatar, and start
+// capturing right away ??pressing the mic IS the press-to-speak. toggleMic()
+// unlocks audio and kicks off a cold session without awaiting it, so Ditto
+// warming up never blocks the microphone.
+async function startVoiceMode() {
+    document.getElementById('app').classList.remove('composer-open');
+    if (!micOn && !micStarting) await toggleMic();
+}
+
+async function enterConversationWithPrompt(prompt) {
+    enterConversation();
+    unlockOutputAudio();
+    addBubble('user', prompt);
+    await sendText(prompt, false);
+}
+
+function openEndSessionDialog() {
+    const dialog = document.getElementById('endSessionDialog');
+    dialog.hidden = false;
+    dialog.querySelector('.end-session-continue').focus();
+}
+
+function closeEndSessionDialog() {
+    document.getElementById('endSessionDialog').hidden = true;
+    document.querySelector('.conversation-exit')?.focus();
+}
+
+function endConversation() {
+    closeEndSessionDialog();
+    stopMic(false);
+    interrupt();
+    if (activeChatAbortController) activeChatAbortController.abort();
+    activeChatAbortController = null;
+    textResponseActive = false;
+    latencyTurn++;
+    speakGen++;
+    speakQueue = Promise.resolve();
+    avatarSpeaking = false;
+    renderMicButton();
+    const video = document.getElementById('video');
+    const remoteAudio = document.getElementById('remoteAudio');
+    video.muted = true;
+    remoteAudio.pause();
+    remoteAudio.muted = true;
+    outputAudioUnlocked = false;
+    document.getElementById('chatResponse').replaceChildren();
+    document.getElementById('txtMessage').value = '';
+    resetExperienceRating();
+    chatSessionId = createChatSessionId();
+    document.getElementById('offerError').style.display = 'none';
+    const app = document.getElementById('app');
+    app.classList.remove('conversation-active', 'composer-open');
+    document.getElementById('conversationView').hidden = true;
+    document.getElementById('landingView').hidden = false;
+    updateLandingSource();
+    const landingVideo = document.getElementById('landingVideo');
+    landingVideo.currentTime = 0;
+    landingVideo.play().catch(() => {});
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (!document.getElementById('endSessionDialog').hidden) closeEndSessionDialog();
+    if (!document.getElementById('infoDialog').hidden) closeInfoDialog();
+    if (!document.getElementById('experienceRating').hidden) dismissExperienceRating();
+});
+
+// --- Voice input (browser SpeechRecognition, matching avatar_ui) ---
+let speechRecognition = null, speechFinalText = '', speechInterimText = '';
+let micCtx = null, micStream = null, micSource = null;
+let micAnalyser = null, micVisualFrame = null, micOn = false, micStarting = false, micProcessing = false, avatarSpeaking = false;
+let micStartGeneration = 0;
+const AUTO_SUBMIT_SILENCE_MS = 1200;
+const VOICE_ACTIVITY_RMS = 0.018;
+let micDetectedSpeech = false, micSilenceSince = 0;
+
+function resetVoiceBars() {
+    document.querySelectorAll('.voice-bar').forEach(bar => { bar.style.height = '4px'; });
+}
+
+function stopVoiceVisualization() {
+    if (micVisualFrame) cancelAnimationFrame(micVisualFrame);
+    micVisualFrame = null;
+    micAnalyser = null;
+    resetVoiceBars();
+}
+
+function drawVoiceBars() {
+    if (!micOn || !micAnalyser) return;
+    const values = new Uint8Array(micAnalyser.frequencyBinCount);
+    micAnalyser.getByteFrequencyData(values);
+    const bars = document.querySelectorAll('.voice-bar');
+    const step = Math.max(1, Math.floor(values.length / bars.length));
+    bars.forEach((bar, index) => {
+        const normalized = values[index * step] / 255;
+        bar.style.height = `${4 + normalized * 20}px`;
+    });
+    const samples = new Uint8Array(micAnalyser.fftSize);
+    micAnalyser.getByteTimeDomainData(samples);
+    let squareSum = 0;
+    for (const sample of samples) {
+        const centered = (sample - 128) / 128;
+        squareSum += centered * centered;
+    }
+    const rms = Math.sqrt(squareSum / samples.length);
+    const now = performance.now();
+    if (rms >= VOICE_ACTIVITY_RMS) {
+        micDetectedSpeech = true;
+        micSilenceSince = 0;
+    } else if (micDetectedSpeech && !micProcessing) {
+        if (!micSilenceSince) micSilenceSince = now;
+        if (now - micSilenceSince >= AUTO_SUBMIT_SILENCE_MS) {
+            micDetectedSpeech = false;
+            micSilenceSince = 0;
+            stopMic(true);
+            return;
+        }
+    }
+    micVisualFrame = requestAnimationFrame(drawVoiceBars);
+}
+
+function renderMicButton() {
+    const btn = document.getElementById('btnMic');
+    const mode = avatarSpeaking ? 'interrupt' : (micOn ? 'recording' : (micStarting ? 'starting' : (micProcessing ? 'processing' : 'idle')));
+    const label = mode === 'interrupt' ? 'Interrupt' : (mode === 'recording' ? 'Press to Stop Recording' : (mode === 'starting' ? 'Starting microphone...' : (mode === 'processing' ? 'Processing...' : 'Press to Speak')));
+    btn.classList.toggle('recording', mode === 'recording');
+    btn.classList.toggle('interrupting', mode === 'interrupt');
+    btn.classList.toggle('processing', mode === 'processing');
+    btn.disabled = mode === 'processing' || mode === 'starting';
+    btn.querySelector('.voice-state').innerHTML = 'Microphone<br>' + (micOn ? 'On' : (micStarting ? 'Starting' : 'Off'));
+    btn.querySelector('.voice-label').textContent = label;
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-pressed', String(mode !== 'idle'));
+    btn.setAttribute('aria-busy', String(mode === 'processing' || mode === 'starting'));
+}
+
+async function handleVoiceControl() {
+    if (micProcessing || micStarting) return;
+    if (avatarSpeaking) {
+        await interrupt();
+        avatarSpeaking = false;
+        renderMicButton();
+        if (!micOn) await toggleMic();
+        return;
+    }
+    await toggleMic();
+}
+
+async function toggleMic() {
+    unlockOutputAudio();   // this click is a user gesture ??unlock avatar audio playback now
+    if (micOn) { stopMic(true); return; }
+    if (micStarting) return;
+    if (sessionid) interrupt();
+    else ensureSession();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert('Browser speech recognition is not supported. Please use Chrome or Edge.');
+        return;
+    }
+    const startGeneration = ++micStartGeneration;
+    micStarting = true;
+    renderMicButton();
+    renderComposerAction();
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        });
+    } catch (e) {
+        if (startGeneration === micStartGeneration) {
+            micStarting = false;
+            renderMicButton();
+        }
+        return alert('Microphone permission denied');
+    }
+    if (startGeneration !== micStartGeneration) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+        return;
+    }
+
+    micStarting = false;
+    micOn = true;
+    micProcessing = false;
+    micDetectedSpeech = false;
+    micSilenceSince = 0;
+    speechFinalText = '';
+    speechInterimText = '';
+    renderMicButton();
+    document.getElementById('txtMessage').placeholder = 'Listening... click mic again to finish';
+
+    micCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (micCtx.state === 'suspended') await micCtx.resume();
+    micSource = micCtx.createMediaStreamSource(micStream);
+    micAnalyser = micCtx.createAnalyser();
+    micAnalyser.fftSize = 256;
+    micSource.connect(micAnalyser);
+    drawVoiceBars();
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.maxAlternatives = 1;
+    recognition.onresult = event => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const text = event.results[i][0].transcript;
+            if (event.results[i].isFinal) speechFinalText += `${text} `;
+            else interim += text;
+        }
+        speechInterimText = interim;
+        document.getElementById('txtMessage').value = `${speechFinalText}${speechInterimText}`.trim();
+    };
+    recognition.onerror = event => {
+        if (event.error === 'aborted' || event.error === 'no-speech') return;
+        console.error('Speech recognition error:', event.error);
+        if (micProcessing) finishBrowserRecognition();
+    };
+    recognition.onend = () => {
+        if (micProcessing) {
+            finishBrowserRecognition();
+        } else if (micOn && speechRecognition === recognition) {
+            try { recognition.start(); } catch (error) {
+                console.error('Unable to restart speech recognition:', error);
+            }
+        }
+    };
+    speechRecognition = recognition;
+    recognition.start();
+}
+
+function stopMic(sendStop) {
+    micStartGeneration++;
+    micStarting = false;
+    if (micSource) { micSource.disconnect(); micSource = null; }
+    stopVoiceVisualization();
+    if (micCtx) { micCtx.close(); micCtx = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    micOn = false;
+    micDetectedSpeech = false;
+    micSilenceSince = 0;
+    if (speechRecognition && sendStop) {
+        micProcessing = true;
+        try { speechRecognition.stop(); } catch (error) { finishBrowserRecognition(); }
+    } else if (speechRecognition) {
+        micProcessing = false;
+        speechRecognition.onresult = null;
+        speechRecognition.onerror = null;
+        speechRecognition.onend = null;
+        try { speechRecognition.abort(); } catch (error) { /* already stopped */ }
+        speechRecognition = null;
+        document.getElementById('txtMessage').placeholder = 'Enter a message...';
+    }
+    renderMicButton();
+}
+
+async function finishBrowserRecognition() {
+    const recognition = speechRecognition;
+    speechRecognition = null;
+    if (recognition) {
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+    }
+    const clean = `${speechFinalText}${speechInterimText}`.replace(/\s+/g, ' ').trim();
+    speechFinalText = '';
+    speechInterimText = '';
+    micProcessing = false;
+    document.getElementById('txtMessage').placeholder = 'Enter a message...';
+    renderMicButton();
+    if (!clean) {
+        document.getElementById('txtMessage').value = '';
+        return;
+    }
+    document.getElementById('txtMessage').value = clean;
+    sendText();
+}
+
+// --- WebRTC ---
+function negotiate(peer) {
+    peer.addTransceiver('video', { direction: 'recvonly' });
+    peer.addTransceiver('audio', { direction: 'recvonly' });
+    return peer.createOffer().then(offer => peer.setLocalDescription(offer)).then(() => {
+        return new Promise(resolve => {
+            if (peer.iceGatheringState === 'complete') resolve();
+            else {
+                const check = () => { if (peer.iceGatheringState === 'complete') { peer.removeEventListener('icegatheringstatechange', check); resolve(); } };
+                peer.addEventListener('icegatheringstatechange', check);
+            }
+        });
+    }).then(() => {
+        const offer = peer.localDescription;
+        // Per-avatar voice mapping (ElevenLabs voice IDs; falls back to launch --REF_FILE)
+        const AVATAR_VOICE = {
+            'ditto_man': 'aSXZu6bgEOS8MXVRzjPi',
+            'ditto_woman': 'SEWXl8lPSO01tdGbWECX',
+            'ditto_man_clinic': 'aSXZu6bgEOS8MXVRzjPi',
+            'ditto_woman_teacher': 'SEWXl8lPSO01tdGbWECX',
+            'ditto_malaywoman': '15Y62ZlO8it2f5wduybx',
+            'ditto_caucasian': '8Ln42OXYupYsag45MAUy',
+            'avatar_man': 'aSXZu6bgEOS8MXVRzjPi',
+            'avatar_woman2': 'SEWXl8lPSO01tdGbWECX',
+        };
+        const sel = document.getElementById('avatarSelect');
+        const chosenAvatar = (sel && sel.value) || undefined;   // per-session avatar from the dropdown
+        const body = {
+            sdp: offer.sdp,
+            type: offer.type,
+            avatar: chosenAvatar,
+            refaudio: (chosenAvatar && AVATAR_VOICE[chosenAvatar]) || undefined,
+        };
+        return fetch('/offer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }).then(res => res.json()).then(answer => {
+        // Check for server-side error code
+        if (answer.code && answer.code !== 0) {
+            throw new Error(answer.msg || 'Unknown server error');
+        }
+        if (!answer.sdp) {
+            throw new Error('Server returned no SDP');
+        }
+        if (answer.sessionid) setSessionId(answer.sessionid);
+        return peer.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: answer.sdp }));
+    }).catch(e => {
+        if (pc !== peer) return;
+        const msg = e.message || String(e);
+        showError(msg);
+        // Reset connection state on error
+        pc = null;
+        connecting = false;
+        peer.close();
+        updateStatus(false);
+        setSessionId(null);
+        // always auto-retry (kiosk mode ??no connect/disconnect UI)
+        scheduleReconnect();
+    });
+}
+
+function scheduleReconnect(delay = 2000) {
+    if (sessionEnded || reconnectTimer) return;
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (!sessionEnded && (!pc || ['failed', 'closed', 'disconnected'].includes(pc.connectionState))) start();
+    }, delay);
+}
+
+async function start() {
+    if (sessionEnded) return;
+    if (connecting || (pc && ['new', 'connecting', 'connected'].includes(pc.connectionState))) return;
+    if (pc) { const old = pc; pc = null; old.close(); }
+    connecting = true;
+    document.getElementById('offerError').style.display = 'none';
+    // Fetch ICE servers from backend (Cloudflare TURN, auto-refreshed, never expires)
+    let iceServers = [{ urls: 'stun:stun.cloudflare.com:3478' }];
+    try {
+        const r = await fetch('/api/iceservers');
+        const j = await r.json();
+        if (j.iceServers && j.iceServers.length) iceServers = j.iceServers;
+    } catch (e) { console.warn('iceservers fetch failed, using STUN only', e); }
+    const config = { sdpSemantics: 'unified-plan', iceServers };
+    const peer = new RTCPeerConnection(config);
+    pc = peer;
+    const stream = new MediaStream();
+    const video = document.getElementById('video');
+    const remoteAudio = document.getElementById('remoteAudio');
+    peer.addEventListener('track', evt => {
+        if (pc !== peer) return;
+        if (evt.track.kind === 'audio') {
+            remoteAudio.pause();
+            remoteAudio.srcObject = new MediaStream([evt.track]);
+            remoteAudio.muted = !outputAudioUnlocked;
+            remoteAudio.play().catch(error => console.warn('remote audio playback blocked', error));
+            return;
+        }
+        if (!stream.getTracks().some(track => track.id === evt.track.id)) {
+            stream.addTrack(evt.track);
+        }
+        remoteStream = stream;
+        video.pause();
+        video.removeAttribute('src');
+        video.srcObject = stream;
+        video.loop = false;
+        video.muted = true;
+        video.play().catch(() => {});
+    });
+    peer.addEventListener('connectionstatechange', () => {
+        if (pc !== peer) return;
+        if (peer.connectionState === 'connected') {
+            connecting = false;
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            updateStatus(true);
+        } else if (peer.connectionState === 'disconnected') {
+            updateStatus(false);
+            scheduleReconnect(5000);
+        } else if (peer.connectionState === 'failed' || peer.connectionState === 'closed') {
+            connecting = false;
+            pc = null;
+            updateStatus(false);
+            setSessionId(null);
+            // always auto-reconnect (kiosk mode ??no connect/disconnect UI)
+            scheduleReconnect();
+        }
+    });
+    negotiate(peer);
+}
+
+// --- Text / Chat ---
+const CHAT_API_URL = 'https://voncierge-lang-agent.hipster-virtual.com/chat/sse';
+const CHAT_AGENT_ID = 'DEVELOPMENT_HPB_17_215536fc419d4d45a6148239df3b1ba8';
+const INITIAL_AVATAR_ID = 'ditto_man';
+
+function unlockOutputAudio() {
+    const video = document.getElementById('video');
+    const remoteAudio = document.getElementById('remoteAudio');
+    outputAudioUnlocked = true;
+    // Preview video is always silent. WebRTC audio is played independently so
+    // a late-arriving audio track cannot be lost inside the video stream.
+    video.muted = true;
+    video.play().catch(() => {});
+    if (remoteAudio?.srcObject) {
+        remoteAudio.muted = false;
+        remoteAudio.play().catch(error => console.warn('remote audio playback blocked', error));
+    }
+}
+
+// Send one sentence to the avatar to speak (echo = speak the given text verbatim)
+async function speak(text, doInterrupt, pauseMs = 520, final = true) {
+    unlockOutputAudio();
+    const resp = await fetch('/human', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, type: 'echo', interrupt: doInterrupt, pause_ms: pauseMs, final, sessionid: String(sessionid) }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.code) throw new Error(data.msg || 'avatar speak failed');
+}
+
+let speakQueue = Promise.resolve();
+let speakGen = 0;   // bumped by interrupt() to cancel sentences queued but not yet sent
+
+function queueSpeak(text, doInterrupt, pauseMs = 520, final = true) {
+    const gen = speakGen;
+    speakQueue = speakQueue.catch(() => {}).then(async () => {
+        if (gen !== speakGen) return;   // an interrupt happened ??drop this stale queued sentence
+        await ensureSession();
+        if (gen !== speakGen || !sessionid) return;
+        return speak(text, doInterrupt, pauseMs, final);
+    });
+    return speakQueue;
+}
+
+// Where to cut a chunk to send to the avatar. Start speaking ASAP: full-stop
+// anywhere, OR a comma/clause once we're past SOFT_MIN, OR a word boundary once a
+// run passes HARD_MAX ??so a long first sentence doesn't stall the avatar.
+function firstSentenceEnd(s) {
+    const SOFT_MIN = 20, HARD_MAX = 40;
+    let lastSpace = -1;
+    let inUrl = false;
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (!inUrl && (s.startsWith('https://', i) || s.startsWith('http://', i))) {
+            inUrl = true;
+        }
+        if (inUrl) {
+            if (/\s/.test(c)) inUrl = false;
+            continue;
+        }
+        if ('!??蹇???n'.includes(c)) return i;                                   // strong sentence end
+        if (c === '.' && i + 1 < s.length && /\s/.test(s[i + 1])) return i;       // period + space
+        if (i >= SOFT_MIN && ',???????.includes(c)) return i;                   // long clause ??break at comma
+        if (c === ' ') lastSpace = i;
+        if (i >= HARD_MAX && lastSpace >= SOFT_MIN) return lastSpace;             // very long run ??word boundary
+    }
+    return -1;
+}
+
+// Split only at semantic boundaries. Comma-sized chunks made ElevenLabs reset
+// prosody and forced Ditto to repeatedly restart its speech motion.
+function semanticBoundary(s, force = false) {
+    let inUrl = false;
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (!inUrl && (s.startsWith('https://', i) || s.startsWith('http://', i))) inUrl = true;
+        if (inUrl) {
+            if (/\s/.test(c)) inUrl = false;
+            continue;
+        }
+        const priorToken = s.slice(0, i).match(/([A-Za-z.]{1,12})$/);
+        const abbreviation = priorToken && [
+            'e.g', 'i.e', 'etc', 'vs', 'excl', 'incl', 'approx', 'no',
+            'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st'
+        ].includes(priorToken[1].toLowerCase());
+        const isPeriod = c === '.' && !abbreviation &&
+            (i + 1 >= s.length || /\s/.test(s[i + 1]));
+        if ('!?\u3002\uff01\uff1f'.includes(c) || isPeriod) {
+            if (i + 1 >= s.length && !force) return null;
+            const paragraph = s.slice(i + 1).match(/^[ \t]*\r?\n[ \t]*\r?\n/);
+            return { end: i + 1 + (paragraph ? paragraph[0].length : 0), pauseMs: paragraph ? 900 : 520 };
+        }
+        if (c === ':' && (i + 1 < s.length || force)) {
+            const listStart = s.slice(i + 1).match(/^[ \t]*\r?\n/);
+            if (listStart) return { end: i + 1 + listStart[0].length, pauseMs: 800 };
+        }
+        // A list item is a real semantic boundary. Consume the separator so
+        // names such as "The Meeting Point" can never be split by length.
+        if (i > 0 && s.startsWith(' - ', i)) {
+            return { end: i + 3, pauseMs: 280 };
+        }
+    }
+    return force && s.trim() ? { end: s.length, pauseMs: 520 } : null;
+}
+
+function addBubble(who, text) {
+    const out = document.getElementById('chatResponse');
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + (who === 'user' ? 'chat-user' : 'chat-bot');
+    if (who === 'user') {
+        div.textContent = text;
+    } else {
+        const content = document.createElement('div');
+        content.className = 'bubble-content';
+        content.textContent = text;
+        div.appendChild(content);
+        const feedback = document.createElement('div');
+        feedback.className = 'bubble-feedback';
+        feedback.hidden = true;
+        feedback.setAttribute('role', 'group');
+        feedback.setAttribute('aria-label', 'Rate this response');
+        feedback.innerHTML = '<button class="feedback-button" type="button" data-feedback="up" title="Helpful" aria-label="Helpful" aria-pressed="false"><i class="bi bi-hand-thumbs-up-fill" aria-hidden="true"></i></button>' +
+            '<button class="feedback-button" type="button" data-feedback="down" title="Not helpful" aria-label="Not helpful" aria-pressed="false"><i class="bi bi-hand-thumbs-down-fill" aria-hidden="true"></i></button>';
+        feedback.addEventListener('click', event => {
+            const button = event.target.closest('.feedback-button');
+            if (!button) return;
+            const selected = button.classList.contains('selected');
+            feedback.querySelectorAll('.feedback-button').forEach(item => {
+                item.classList.remove('selected');
+                item.setAttribute('aria-pressed', 'false');
+            });
+            if (!selected) {
+                button.classList.add('selected');
+                button.setAttribute('aria-pressed', 'true');
+            }
+        });
+        div.appendChild(feedback);
+    }
+    out.appendChild(div);
+    if (who === 'bot' && text.trim()) experienceRatingEligible = true;
+    out.scrollTop = out.scrollHeight;
+    return div;
+}
+
+const VIDEO_URL_RE = /`?(https?:\/\/[^\s`<>"']+?\.(?:mp4|mov|webm)(?:\?[^\s`<>"']*)?)`?/gi;
+const CHAT_URL_RE = /`?((?:https?:\/\/|www\.)[^\s`<>"')]+)`?/gi;
+
+function normalizeExternalUrl(url) {
+    return /^https?:\/\//i.test(url) ? url : 'https://' + url;
+}
+
+function splitTrailingUrlPunctuation(rawUrl) {
+    let url = rawUrl;
+    let trailing = '';
+    while (url && /[.,;:!?]/.test(url[url.length - 1])) {
+        trailing = url[url.length - 1] + trailing;
+        url = url.slice(0, -1);
+    }
+    return { url, trailing };
+}
+
+function youtubeEmbedUrl(url) {
+    try {
+        const parsed = new URL(normalizeExternalUrl(url));
+        const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+        let id = '';
+        if (host === 'youtu.be') id = parsed.pathname.split('/').filter(Boolean)[0] || '';
+        else if (host === 'youtube.com' || host.endsWith('.youtube.com')) {
+            if (parsed.pathname.startsWith('/embed/')) id = parsed.pathname.split('/')[2] || '';
+            else if (parsed.pathname.startsWith('/shorts/')) id = parsed.pathname.split('/')[2] || '';
+            else id = parsed.searchParams.get('v') || '';
+        }
+        return /^[A-Za-z0-9_-]{11}$/.test(id)
+            ? 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0'
+            : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function isDirectVideo(url) {
+    return /\.(?:mp4|mov|webm)(?:\?[^\s`<>"']*)?$/i.test(url);
+}
+
+function createLinkQr(url) {
+    const href = normalizeExternalUrl(url);
+    const wrap = document.createElement('div');
+    wrap.className = 'link-qr';
+    const qr = document.createElement('img');
+    qr.alt = 'QR code';
+    qr.src = '/api/qr?data=' + encodeURIComponent(href);
+    wrap.append(qr);
+    return wrap;
+}
+
+function renderBotBubble(el, text) {
+    const content = el.querySelector('.bubble-content') || el;
+    const feedback = el.querySelector('.bubble-feedback');
+    if (feedback) feedback.hidden = !text.trim();
+    const appendMarkdown = markdown => {
+        if (!markdown) return;
+        if (!window.marked || !window.DOMPurify) {
+            content.appendChild(document.createTextNode(markdown));
+            return;
+        }
+        const template = document.createElement('template');
+        const renderer = new marked.Renderer();
+        // API replies sometimes use single asterisks as punctuation. Keep
+        // bold Markdown, but render single-asterisk emphasis as plain text.
+        renderer.em = token => token.text;
+        template.innerHTML = DOMPurify.sanitize(marked.parse(markdown, { renderer }));
+        content.appendChild(template.content);
+    };
+    content.replaceChildren();
+    // Preserve a Markdown link's human label, but route its URL through the
+    // same embedded-media/QR rendering path as a plain URL.
+    text = text.replace(/\[([^\]]+)\]\(\s*((?:https?:\/\/|www\.)[^\s)]+)\s*\)/gi, '$1 $2');
+    let offset = 0;
+    for (const match of text.matchAll(CHAT_URL_RE)) {
+        appendMarkdown(text.slice(offset, match.index));
+        const split = splitTrailingUrlPunctuation(match[1]);
+        const url = normalizeExternalUrl(split.url);
+        const youtube = youtubeEmbedUrl(url);
+        if (youtube) {
+            const frame = document.createElement('iframe');
+            frame.className = 'chat-media-frame';
+            frame.src = youtube;
+            frame.title = 'YouTube video';
+            frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            frame.allowFullscreen = true;
+            frame.referrerPolicy = 'strict-origin-when-cross-origin';
+            content.appendChild(frame);
+        } else if (isDirectVideo(url)) {
+            const video = document.createElement('video');
+            video.className = 'chat-media';
+            video.controls = true;
+            video.playsInline = true;
+            video.preload = 'metadata';
+            video.src = url;
+            content.appendChild(video);
+        }
+        if (!youtube) content.appendChild(createLinkQr(url));
+        appendMarkdown(split.trailing);
+        offset = match.index + match[0].length;
+    }
+    appendMarkdown(text.slice(offset));
+}
+
+function toSpeechText(text) {
+    return text
+        .replace(/^\s*-\s*/, '')
+        .replace(/\s+-\s*$/, '')
+        .replace(/(?:??鈾s*)?Video Walkthrough\s*:/gi, ' ')
+        .replace(/(?:?謑桀?\s*)?Interactive 360蝪?\s*Tour(?:\s*\(powered by Airsquire\))?\s*:/gi, ' ')
+        .replace(VIDEO_URL_RE, ' ')
+        .replace(/!?\[([^\]]*)\]\(https?:\/\/[^)]+\)/g, '$1')
+        .replace(/(?:https?:\/\/|www\.)\S+/g, ' ')
+        .replace(/\b(?:id|token|share)=[A-Za-z0-9_-]+/gi, ' ')
+        .replace(/[*#_`>~]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function addLatencyRow(bubble) {
+    const row = document.createElement('div');
+    row.className = 'latency-row';
+    row.hidden = true;
+    row.setAttribute('aria-live', 'polite');
+    row.innerHTML = '<span hidden>KB first: <strong></strong></span>' +
+        '<span hidden>KB done: <strong></strong></span>' +
+        '<span hidden>TTS first: <strong></strong></span>' +
+        '<span hidden>Avatar first: <strong></strong></span>';
+    const feedback = bubble.querySelector('.bubble-feedback');
+    bubble.insertBefore(row, feedback || null);
+    const values = row.querySelectorAll('strong');
+    return {
+        kbFirst: values[0],
+        kbDone: values[1],
+        ttsFirst: values[2],
+        avatarFirst: values[3],
+    };
+}
+
+function setLatency(el, startedAt, name) {
+    const seconds = (performance.now() - startedAt) / 1000;
+    const value = seconds.toFixed(2) + 's';
+    el.textContent = value;
+    el.parentElement.hidden = false;
+    el.closest('.latency-row').hidden = false;
+    console.info('[latency]', name, value);
+}
+
+async function getAvatarTiming() {
+    const resp = await fetch('/avatar_timing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionid: String(sessionid) }),
+    });
+    const data = await resp.json();
+    return data.code === 0 ? data.data : { tts_seq: 0, avatar_seq: 0 };
+}
+
+let latencyTurn = 0;
+let activeLatencyMetrics = null;
+async function watchAvatarTiming(startedAt, turn, metrics, baseline) {
+    const deadline = performance.now() + 60000;
+    let gotTts = false, gotAvatar = false;
+    while (turn === latencyTurn && performance.now() < deadline && (!gotTts || !gotAvatar)) {
+        try {
+            const timing = await getAvatarTiming();
+            if (!gotTts && timing.tts_seq > baseline.tts_seq) {
+                gotTts = true;
+                setLatency(metrics.ttsFirst, startedAt, 'ttsFirst');
+            }
+            if (!gotAvatar && timing.avatar_seq > baseline.avatar_seq) {
+                gotAvatar = true;
+                metrics.avatarStarted = true;
+                setLatency(metrics.avatarFirst, startedAt, 'avatarFirst');
+            }
+        } catch (e) { /* retry until timeout */ }
+        await new Promise(resolve => setTimeout(resolve, 25));
+    }
+}
+
+async function sendText(textOverride = null, showUserBubble = true) {
+    unlockOutputAudio();
+    const el = document.getElementById('txtMessage');
+    const out = document.getElementById('chatResponse');
+    const text = (textOverride == null ? el.value : textOverride).trim();
+    const mode = document.getElementById('txtType').value;
+    if (!text) return;
+    if (textResponseActive) await stopTextResponse();
+    ensureSession();
+    const startedAt = performance.now();
+    const turn = ++latencyTurn;
+    el.value = '';
+
+    if (showUserBubble) addBubble('user', text);
+
+    if (mode === 'echo') {
+        const botBubble = addBubble('bot', 'Echo');
+        const metrics = addLatencyRow(botBubble);
+        metrics.kbFirst.textContent = 'n/a';
+        metrics.kbDone.textContent = 'n/a';
+        metrics.kbFirst.parentElement.hidden = false;
+        metrics.kbDone.parentElement.hidden = false;
+        metrics.kbFirst.closest('.latency-row').hidden = false;
+        metrics.startedAt = startedAt;
+        metrics.turn = turn;
+        activeLatencyMetrics = metrics;
+        await interrupt();
+        watchAvatarTiming(startedAt, turn, metrics, { tts_seq: 0, avatar_seq: 0 });
+        await queueSpeak(text, false, 300, true);     // just speak what was typed
+        return;
+    }
+
+    // chat: stream text on screen AND speak each sentence the moment it completes,
+    // so the avatar starts on sentence 1 instead of waiting for the whole reply.
+    const botBubble = addBubble('bot', '');
+    const metrics = addLatencyRow(botBubble);
+    metrics.startedAt = startedAt;
+    metrics.turn = turn;
+    activeLatencyMetrics = metrics;
+    const controller = new AbortController();
+    activeChatAbortController = controller;
+    textResponseActive = true;
+    renderComposerAction();
+    const interruptPromise = interrupt();  // stop speech while the chat request starts in parallel
+    speakQueue = interruptPromise.catch(() => {});
+    interruptPromise.then(() => {
+        watchAvatarTiming(startedAt, turn, metrics, { tts_seq: 0, avatar_seq: 0 });
+    });
+    let reply = '', spoken = 0, gotFirstCharacter = false;
+    const flushSentences = (force) => {
+        for (;;) {
+            const rest = reply.slice(spoken);
+            const boundary = semanticBoundary(rest, force);
+            if (!boundary) break;
+            const s = toSpeechText(rest.slice(0, boundary.end));
+            spoken += boundary.end;
+            if (s) queueSpeak(s, false, boundary.pauseMs, false);
+        }
+        if (force) {
+            const tail = toSpeechText(reply.slice(spoken));
+            if (tail) queueSpeak(tail, false, 280, false);
+            spoken = reply.length;
+            // Every completed sentence already carries its semantic pause.
+            // The empty final marker only flushes Ditto's remaining model tail.
+            queueSpeak('', false, 20, true);
+        }
+    };
+    try {
+        const resp = await fetch(CHAT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({
+                message: text,
+                session_id: chatSessionId,
+                agent_id: CHAT_AGENT_ID,
+            }),
+        });
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let sse = '', done = false;
+        while (!done) {
+            const r = await reader.read();
+            if (r.done) break;
+            sse += dec.decode(r.value, { stream: true });
+            let nl;
+            while ((nl = sse.indexOf('\n')) >= 0) {
+                const line = sse.slice(0, nl).trim(); sse = sse.slice(nl + 1);
+                if (!line.startsWith('data:')) continue;
+                let obj; try { obj = JSON.parse(line.slice(5).trim()); } catch (e) { continue; }
+                const chunk = obj.data || '';
+                if (chunk) {
+                    if (!gotFirstCharacter) {
+                        gotFirstCharacter = true;
+                        setLatency(metrics.kbFirst, startedAt, 'kbFirst');
+                    }
+                    reply += chunk;
+                    renderBotBubble(botBubble, reply);
+                    out.scrollTop = out.scrollHeight;
+                    flushSentences(false);            // speak completed sentences immediately
+                }
+                if (obj.final_token) { done = true; break; }
+            }
+        }
+        flushSentences(true);                         // speak the final partial sentence
+        setLatency(metrics.kbDone, startedAt, 'kbDone');
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        reply += '\n[error: ' + (e.message || e) + ']';
+        renderBotBubble(botBubble, reply);
+    } finally {
+        if (activeChatAbortController === controller) {
+            activeChatAbortController = null;
+            textResponseActive = false;
+            renderComposerAction();
+        }
+    }
+}
+
+// --- Interrupt ---
+function interrupt() {
+    speakGen++;                            // invalidate every sentence still queued in the frontend
+    speakQueue = Promise.resolve();
+    avatarSpeaking = false;
+    renderMicButton();
+    renderComposerAction();
+    if (!sessionid) return Promise.resolve();
+    return fetch('/interrupt_talk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionid: String(sessionid) }),
+    }).then(r => r.json()).then(d => console.log('interrupt:', d)).catch(() => {});
+}
+
+// --- Speaking Status ---
+function checkSpeaking() {
+    if (!sessionid) return alert('Please connect WebRTC first');
+    fetch('/is_speaking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionid: String(sessionid) }),
+    }).then(r => r.json()).then(d => alert('Speaking: ' + JSON.stringify(d.data)));
+}
+
+// Populate the avatar switcher from the backend with user-facing names.
+async function loadAvatarList() {
+    const sel = document.getElementById('avatarSelect');
+    if (!sel) return;
+    try {
+        const j = await fetch('/api/avatars').then(r => r.json());
+        const avatars = (j.data && j.data.avatars) || [];
+        let def = '';
+        try {
+            const c = await fetch('/api/admin/config').then(r => r.json());
+            def = (c.data && c.data.config && c.data.config.avatar_id) || '';
+        } catch (e) { /* config endpoint optional */ }
+        const preferred = avatars.includes(INITIAL_AVATAR_ID)
+            ? INITIAL_AVATAR_ID
+            : (avatars.includes(def) ? def : (avatars[0] || ''));
+        sel.innerHTML = '';
+        avatars.forEach(id => {
+            const o = document.createElement('option');
+            o.value = id;
+            const avatarLabels = { ditto_man_clinic: 'avatar_doctor', ditto_woman_teacher: 'avatar_teacher', ditto_malaywoman: 'avatar_malaywoman', ditto_caucasian: 'avatar_caucasianman' };
+            o.textContent = avatarLabels[id] || id.replace(/^ditto_/, 'avatar_');
+            if (id === preferred) o.selected = true;
+            sel.appendChild(o);
+        });
+        updateLandingSource();
+    } catch (e) { console.warn('avatar list failed', e); }
+}
+
+async function syncAvatarSpeaking() {
+    if (!sessionid) {
+        if (avatarSpeaking) {
+            avatarSpeaking = false;
+            renderMicButton();
+        }
+        return;
+    }
+    try {
+        const response = await fetch('/is_speaking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionid: String(sessionid) }),
+        });
+        const payload = await response.json();
+        const speaking = response.ok && payload.code === 0 && Boolean(payload.data);
+        const wasSpeaking = avatarSpeaking;
+        if (speaking !== avatarSpeaking) {
+            avatarSpeaking = speaking;
+            renderMicButton();
+            renderComposerAction();
+        }
+        if (!speaking && wasSpeaking) scheduleExperienceRating();
+    } catch (error) { /* reconnect loop owns transport errors */ }
+}
+
+setInterval(syncAvatarSpeaking, 250);
+
+// Switch avatar live ??no backend restart. Reconnect with the chosen avatar;
+// build_avatar_session loads it on the backend for this session (+ its voice).
+async function switchAvatar() {
+    interrupt();
+    if (pc) { pc.close(); pc = null; }
+    connecting = false;
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    setSessionId(null);
+    document.getElementById('video').srcObject = null;
+    const remoteAudio = document.getElementById('remoteAudio');
+    remoteAudio.pause();
+    remoteAudio.srcObject = null;
+    remoteStream = null;
+    updateLandingSource();
+    await start();   // start()/negotiate() reads #avatarSelect
+}
+
+// Select the preferred avatar before negotiating. Running these concurrently
+// could create a woman session first and only change the dropdown to man later.
+loadAvatarList().finally(() => start());
+
+</script>
+</body>
+</html>

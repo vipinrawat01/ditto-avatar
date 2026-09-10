@@ -1,0 +1,50 @@
+__pycache__/
+build/
+*.egg-info/
+*.so
+*.mp4
+
+tmp*
+trial*/
+
+data
+data_utils/face_tracking/3DMM/*
+data_utils/face_parsing/79999_iter.pth
+
+pretrained
+*.mp4
+.DS_Store
+workspace/log_ngp.txt
+.idea
+models/
+*.log
+dist
+.env
+
+# Local/RunPod environments and downloaded model files
+.tmp/
+.cache/
+ditto310/
+ditto_pydeps/
+ditto-talkinghead/
+checkpoints/
+*.engine
+*.onnx
+*.pth
+*.pt
+*.ckpt
+*.tar
+*.tar.gz
+!.env.example
+!assets/woman.mp4
+!assets/source.mp4
+
+# Avatar video/image assets -- the blanket `data` and `*.mp4` rules above
+# would otherwise silently drop these (needed to reproduce every avatar
+# without re-recording/uploading them separately after a fresh clone).
+!data/
+!data/avatars/
+!data/avatars/**
+
+.claude/
+.agents/
