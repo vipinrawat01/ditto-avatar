@@ -12,7 +12,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/kathyko/livetalking-avatar
+  IMAGE_NAME: ghcr.io/vipinrawat01/ditto-avatar
 
 jobs:
   build:
@@ -39,7 +39,6 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=f038a55,enable={{is_default_branch}}
             type=sha,prefix=
 
       - uses: docker/build-push-action@v6
